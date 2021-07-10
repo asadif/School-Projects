@@ -1,0 +1,76 @@
+import re
+from collections import Counter
+
+# word counter
+def count(textt):
+    newText = textt.split()
+    return len(newText)
+
+# returns a dict of 10 longest sentences as keys,
+# and chapter number as value
+def splitParagraphIntoSentences(text, chapter):
+    #break a text into sentences, make a dictionary of sentenceListand return a dictionary with sentences as keys and chapter number as their value
+   
+    # to split by multiple characters, regular expressions are easiest (and fastest)
+    sentenceEnders = re.compile('[.!?]')
+    sentenceList = sentenceEnders.split(text)
+    sentenceList.pop() #remove the last empty space
+    sentenceDict = dict.fromkeys(sentenceList, chapter)
+
+    # order dict by key words count
+    sentenceDict = sorted(sentenceDict.items(), key=lambda x: count(x[0]), reverse=True)
+    # print(sentenceDict)
+
+    # adding 10 longest sentences to new dict
+    top10 = {}
+    for i in range(10):
+    	top10[sentenceDict[i][0]] = sentenceDict[i][1]
+
+    return top10
+
+
+
+
+# ######## WOORDSSS #######
+
+# returns a list of words
+def splitText(chapter):
+	wordsEnders = re.compile ("(?:(?:[^a-zA-Z]+')|(?:'[^a-zA-Z]+))|(?:[^a-zA-Z']+)")
+	wordsList = wordsEnders.split(chapter)
+	return wordsList
+
+
+def filterWords(stop, chapter):
+	wordss = splitText(chapter)
+	stopp = [x.lower() for x in splitText(stop)]
+
+	filtereed = filter(lambda x: x.lower() not in stopp, wordss)
+	filtereed = list(filtereed)
+
+	return filtereed
+
+
+# returns a list without stopwords
+def removeMofo(stop, chapter, chapNum):
+
+	filteredList = filterWords(stop, chapter)
+	# get most 10 frequent words
+	frequencyy = Counter(filteredList)
+	occurances = frequencyy.most_common(10)
+
+	# get only the keys in a list of tuples
+	top10 = [i[0] for i in occurances]
+	# print(top10)
+
+	# convert to dict with chapter number as value
+	wordsDict = dict.fromkeys(top10, chapNum)
+	return wordsDict
+
+def getFrequency(chapter, word, stop):
+	# filter chapter
+	filteredWords = filterWords(stop, chapter)
+	# gets frequency count
+	frequency = filteredWords.count(word)
+	# print(frequency)
+	return frequency
+
