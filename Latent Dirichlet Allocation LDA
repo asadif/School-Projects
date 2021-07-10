@@ -1,0 +1,288 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[1]:
+
+
+
+import pandas as pd
+import os
+os.chdir('..')
+# Read data into papers
+df = pd.read_csv('/Users/fofo/Desktop/thesis/FG1.csv')
+# Print head
+df.head()
+
+
+# In[2]:
+
+
+# Load the regular expression library
+import re
+
+
+# In[3]:
+
+
+df["answers_processed"] = df['answers'].str.replace('[^\w\s]','')
+
+df.head()
+
+
+# In[4]:
+
+
+# lower case everything 
+df = df.apply(lambda x: x.str.lower() if x.dtype == "object" else x)
+
+df.head()
+
+
+# In[5]:
+
+
+# Load the regular expression library
+import re
+# Remove punctuation
+df["answers_processed"] = df['answers_processed'].str.replace('[^\w\s]','')
+# regex = re.compile(r'[\n\r\t]')
+# df["answers_processed"] = regex.sub(" ", df["answers_processed"])
+
+df["answers_processed"].head()
+
+
+# In[6]:
+
+
+df["answers_processed"] = df["answers_processed"].replace('\n',' ', regex=True)
+df["answers_processed"] = df["answers_processed"].replace('\t',' ', regex=True)
+df['answers_processed'] = df['answers_processed'].str.replace('\d+', '')
+
+df.head()
+
+
+# In[7]:
+
+
+import gensim
+from gensim.utils import simple_preprocess
+import nltk
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+
+
+# In[8]:
+
+
+stop_words = stopwords.words('english')
+stop_words.extend(['from','like', 'no', 'yeah', 'dont', 'dass', 'feel', 'one', 'subject', 're', 'edu', 'use', 'zfs', 'zsf', 'zoom', 'im', 'oh','yes', ' Me:', 'think', 'mean', 'right', 'kind', 'of', 'aaarm'])
+def sent_to_words(sentences):
+    for sentence in sentences:
+        # deacc=True removes punctuations
+        yield(gensim.utils.simple_preprocess(str(sentence), deacc=True))
+def remove_stopwords(texts):
+    return [word for text in texts for word in text if word not in stop_words]
+data = df["answers_processed"].tolist()
+data_words = sent_to_words(data)
+# remove stop words
+data_words = remove_stopwords(data_words)
+# print(data_words)
+
+
+# In[24]:
+
+
+print(data)
+
+
+# In[1]:
+
+
+# Import the wordcloud library
+from wordcloud import WordCloud
+# Join the different processed titles together.
+long_string = ' '.join(data_words)
+# Create a WordCloud object
+wordcloud = WordCloud(background_color="white", max_words=5000, contour_width=3, contour_color='steelblue')
+# Generate a word cloud
+wordcloud.generate(long_string)
+# Visualize the word cloud
+wordcloud.to_image()
+# print(long_string)
+
+
+# In[11]:
+
+
+import gensim.corpora as corpora
+
+
+# In[23]:
+
+
+data_words = list(sent_to_words(data))
+print(data_words)
+
+
+# In[14]:
+
+
+#Tokenize the sentence into words
+tokens = [word for word in long_string.split()]
+# print (tokens)
+
+
+# In[17]:
+
+
+
+# Create Dictionary
+id2word = corpora.Dictionary([data_words])
+# Create Corpus
+texts = data_words
+# # Term Document Frequency
+corpus = [id2word.doc2bow(text) for text in texts]
+# View
+print(corpus)
+
+
+# In[358]:
+
+
+from pprint import pprint
+# number of topics
+num_topics = 10
+# Build LDA model
+lda_model = gensim.models.LdaMulticore(corpus=corpus,
+                                       id2word=id2word,
+                                       num_topics=num_topics)
+# Print the Keyword in the 10 topics
+# pprint(lda_model.print_topics())
+doc_lda = lda_model[corpus]
+
+
+# In[ ]:
+
+
+
+
+
+# In[359]:
+
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+
+# In[360]:
+
+
+# Load the library with the CountVectorizer method
+from sklearn.feature_extraction.text import CountVectorizer
+import numpy as np
+
+
+# In[361]:
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_style('whitegrid')
+get_ipython().run_line_magic('matplotlib', 'inline')
+
+
+# In[362]:
+
+
+# Helper function
+def plot_10_most_common_words(count_data, count_vectorizer):
+    import matplotlib.pyplot as plt
+    texts = count_vectorizer.get_feature_names()
+    total_counts = np.zeros(len(texts))
+    for t in count_data:
+        total_counts+=t.toarray()[0]
+    
+    count_dict = (zip(texts, total_counts))
+    count_dict = sorted(count_dict, key=lambda x:x[1], reverse=True)[0:10]
+    texts = [w[0] for w in count_dict]
+    counts = [w[1] for w in count_dict]
+    x_pos = np.arange(len(texts)) 
+    
+    plt.figure(2, figsize=(15, 15/1.6180))
+    plt.subplot(title='10 most common words')
+    sns.set_context("notebook", font_scale=1.25, rc={"lines.linewidth": 2.5})
+    sns.barplot(x_pos, counts, palette='husl')
+    plt.xticks(x_pos, texts, rotation=90) 
+    plt.xlabel('words')
+    plt.ylabel('counts')
+    plt.show()
+
+
+# In[363]:
+
+
+# Initialise the count vectorizer with the English stop words
+count_vectorizer = CountVectorizer(stop_words= stop_words)
+
+
+# In[364]:
+
+
+# Fit and transform the processed titles
+count_data = count_vectorizer.fit_transform(df['answers_processed'])
+# print(count_data)
+
+
+# In[365]:
+
+
+# Visualise the 10 most common words
+plot_10_most_common_words(count_data, count_vectorizer)
+# print(count_data)
+
+
+# In[350]:
+
+
+# Load the LDA model from sk-learn
+from sklearn.decomposition import LatentDirichletAllocation as LDA
+ 
+# Helper function
+def print_topics(model, count_vectorizer, n_top_words):
+    words = count_vectorizer.get_feature_names()
+    for topic_idx, topic in enumerate(model.components_):
+        print("\nTopic #%d:" % topic_idx)
+        print(" ".join([words[i]
+                        for i in topic.argsort()[:-n_top_words - 1:-1]]))
+        
+# Tweak the two parameters below
+number_topics = 3
+number_words = 7
+
+
+# In[351]:
+
+
+# Create and fit the LDA model
+lda = LDA(n_components=number_topics)
+lda.fit(count_data)
+
+
+# In[124]:
+
+
+# Print the topics found by the LDA model
+print("Topics found via LDA:")
+print_topics(lda, count_vectorizer, number_words)
+
+
+# In[125]:
+
+
+# We pick the number of topics ahead of time even if we’re not sure what the topics are.
+# Each document is represented as a distribution over topics.
+# Each topic is represented as a distribution over words.
+
+
+
+
